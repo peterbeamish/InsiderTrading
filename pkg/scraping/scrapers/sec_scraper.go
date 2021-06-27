@@ -39,9 +39,13 @@ func NewSECScraper() (*SECScraper, error) {
 
 	scraper.collecter = colly.NewCollector()
 
+	// Log when requests are made
 	scraper.collecter.OnRequest(scraper.onRequest)
 
+	// Callback when a table is found
 	scraper.collecter.OnHTML("table[id=\"transaction-report\"] tbody", scraper.cikTransactionScrape)
+	scraper.collecter.Async = true
+	scraper.collecter.AllowURLRevisit = true
 
 	return &scraper, nil
 

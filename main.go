@@ -36,6 +36,8 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	manager.AddTicker(&wg, "aapl")
+	manager.AddTicker(&wg, "tsla")
+	manager.AddTicker(&wg, "ge")
 
 	wg.Wait()
 }

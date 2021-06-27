@@ -63,7 +63,11 @@ func (m *ScrapeManager) RunScraping(ctx context.Context, wg *sync.WaitGroup, tic
 			return
 		case t := <-scrapeTicker.C:
 			fmt.Printf("%d Scrape Initiated: %s \n", t.Unix(), ticker)
-			scraper.ScapeByTicker(ticker, m.reportChannel)
+			err = scraper.ScapeByTicker(ticker, m.reportChannel)
+			if err != nil {
+				fmt.Errorf("Error scraping ticker: %s, "+err.Error(), ticker)
+				return
+			}
 			//scrapeTicker.Stop()
 
 		}
