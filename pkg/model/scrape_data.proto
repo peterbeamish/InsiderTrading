@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+
+option go_package = "github.com/peterbeamish/insidertrading/pkg/model";
+
+message ScrapedInsiderReport {
+    google.protobuf.Timestamp extraction_time = 1;
+    string ticker = 2;
+    repeated InsiderTransaction transactions = 3;
+}
+
+message InsiderTransaction {
+    google.protobuf.Timestamp transaction_time = 1;
+    string insider_name = 2;
+    
+    enum TransactionType {
+        OTHER = 0;
+        BUY = 1;
+        SELL = 2;
+        DISPOSITION = 3;
+        AWARD = 4;
+    }
+
+    TransactionType transaction_type = 3;
+
+    double number_of_shares_transacted = 4;
+    double number_of_shares_owned = 5;
+
+}

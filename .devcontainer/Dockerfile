@@ -6,6 +6,8 @@ FROM mcr.microsoft.com/vscode/devcontainers/go:0-${VARIANT}
 ARG INSTALL_NODE="true"
 ARG NODE_VERSION="lts/*"
 RUN if [ "${INSTALL_NODE}" = "true" ]; then su vscode -c "source /usr/local/share/nvm/nvm.sh && nvm install ${NODE_VERSION} 2>&1"; fi
+RUN apt update ; apt install -y protobuf-compiler
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.26 ; go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
 
 # [Optional] Uncomment this section to install additional OS packages.
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
