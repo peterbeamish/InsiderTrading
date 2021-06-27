@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/peterbeamish/InsiderTrading/pkg/model"
 	"github.com/peterbeamish/InsiderTrading/pkg/scraping/scrapers"
 )
 
@@ -15,13 +16,15 @@ import (
 type ScrapeManager struct {
 	scrapeInterval time.Duration
 	tickersManaged map[string]context.CancelFunc
+	reportChannel  chan *model.ScrapedInsiderReport
 }
 
-func NewScrapeManager() (*ScrapeManager, error) {
+func NewScrapeManager(reportChannel chan *model.ScrapedInsiderReport) (*ScrapeManager, error) {
 	var manager ScrapeManager
 
 	manager.scrapeInterval = 5 * time.Second
 	manager.tickersManaged = make(map[string]context.CancelFunc)
+	manager.reportChannel = reportChannel
 
 	return &manager, nil
 }
@@ -60,7 +63,8 @@ func (m *ScrapeManager) RunScraping(ctx context.Context, wg *sync.WaitGroup, tic
 			return
 		case t := <-scrapeTicker.C:
 			fmt.Printf("%d Scrape Initiated: %s \n", t.Unix(), ticker)
-			scraper.ScapeByTicker(ticker)
+			scraper.ScapeByTicker(ticker, m.reportChannel)
+			//scrapeTicker.Stop()
 
 		}
 

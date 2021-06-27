@@ -7,14 +7,20 @@ import (
 	"html/template"
 	"net/http"
 	"regexp"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gocolly/colly"
 	"github.com/peterbeamish/InsiderTrading/pkg/model"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type SECScraper struct {
-	collecter    *colly.Collector
-	tickerLookup map[string]string
+	collecter     *colly.Collector
+	tickerLookup  map[string]string
+	ticker        string
+	reportChannel chan *model.ScrapedInsiderReport
 }
 
 type cikTransactionRequest struct {
@@ -28,12 +34,8 @@ const SECGETALLTICKERS = "/include/ticker.txt"
 func NewSECScraper() (*SECScraper, error) {
 
 	var scraper SECScraper
-	scraper.tickerLookup = map[string]string{}
-
-	// Load all the tickers CIKs
-	cikScraper := colly.NewCollector()
-	cikScraper.OnResponse(scraper.tikerScrape)
-	cikScraper.Visit(SECBASEURL + SECGETALLTICKERS)
+	// Cache all the known tickers, and their CIKs
+	scraper.initializeTickerMap()
 
 	scraper.collecter = colly.NewCollector()
 
@@ -43,6 +45,22 @@ func NewSECScraper() (*SECScraper, error) {
 
 	return &scraper, nil
 
+}
+
+var tickerLookupSingleton map[string]string
+
+func (s *SECScraper) initializeTickerMap() {
+
+	if tickerLookupSingleton == nil {
+		s.tickerLookup = map[string]string{}
+		// Load all the tickers CIKs
+		cikScraper := colly.NewCollector()
+		cikScraper.OnResponse(s.tikerScrape)
+		cikScraper.Visit(SECBASEURL + SECGETALLTICKERS)
+		tickerLookupSingleton = s.tickerLookup
+	} else {
+		s.tickerLookup = tickerLookupSingleton
+	}
 }
 
 func (s *SECScraper) tikerScrape(resp *colly.Response) {
@@ -62,27 +80,66 @@ func (s *SECScraper) tikerScrape(resp *colly.Response) {
 }
 
 func (s *SECScraper) cikTransactionScrape(e *colly.HTMLElement) {
+
+	var report model.ScrapedInsiderReport
+	report.ExtractionTime = timestamppb.Now()
+	report.Ticker = s.ticker
+
 	e.ForEach("tr", func(_ int, row *colly.HTMLElement) {
 
 		var transaction model.InsiderTransaction
-
+		var validRow bool = false
 		row.ForEach("td", func(columnIndex int, colData *colly.HTMLElement) {
 
+			validRow = true
 			switch columnIndex {
+			// Transaction Type
 			case 0:
 				transactionType := colData.Text
-				if transactionType == "D" {
+				switch transactionType {
+				case "D":
 					transaction.TransactionType = model.InsiderTransaction_DISPOSITION
+				case "S":
+					transaction.TransactionType = model.InsiderTransaction_SELL
+				case "P":
+					transaction.TransactionType = model.InsiderTransaction_BUY
+				case "A":
+					transaction.TransactionType = model.InsiderTransaction_AWARD
 				}
 
+			// Transaction Date
+			case 1:
+				date := colData.Text
+				time, err := time.Parse("2006-01-02", date)
+				if err != nil {
+					return
+				}
+				transaction.TransactionTime = timestamppb.New(time)
+
+			// Person
+			case 3:
+				transaction.InsiderName = colData.Text
+
+			// Number of shares transacted
+			case 7:
+				strNumberOfShares := strings.Trim(colData.Text, " ")
+
+				transaction.NumberOfSharesTransacted, _ = strconv.ParseFloat(strNumberOfShares, 64)
+			// Number of shares owned
+			case 8:
+				strNumberOfShares := strings.Trim(colData.Text, " ")
+				transaction.NumberOfSharesOwned, _ = strconv.ParseFloat(strNumberOfShares, 64)
 			}
 
-			fmt.Println(colData)
 		})
-		//rowText := string(row.Text)
-		//fmt.Println(rowText)
+		if validRow && transaction.TransactionType == model.InsiderTransaction_DISPOSITION {
+			report.Transactions = append(report.Transactions, &transaction)
+		}
 
 	})
+
+	// Report has been produced, let's send this
+	s.reportChannel <- &report
 }
 
 func (s *SECScraper) onRequest(r *colly.Request) {
@@ -108,11 +165,13 @@ func (s *SECScraper) ScrapeByCIK(cik string) error {
 	return s.collecter.Visit(reqBuf.String())
 }
 
-func (s *SECScraper) ScapeByTicker(ticker string) error {
+func (s *SECScraper) ScapeByTicker(ticker string, reportChannel chan *model.ScrapedInsiderReport) error {
 	cik, ok := s.tickerLookup[ticker]
 	if !ok {
 		return errors.New("Failed to resolve cik of provided ticker")
 	}
+	s.ticker = ticker
+	s.reportChannel = reportChannel
 	return s.ScrapeByCIK(cik)
 }
 
