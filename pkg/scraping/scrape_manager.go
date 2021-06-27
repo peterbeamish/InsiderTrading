@@ -29,7 +29,7 @@ func NewScrapeManager(reportChannel chan *model.ScrapedInsiderReport) (*ScrapeMa
 	return &manager, nil
 }
 
-// Adds a new ticker to the scrape schedule
+// AddTicker Adds a new ticker to the scrape schedule
 func (m *ScrapeManager) AddTicker(wg *sync.WaitGroup, ticker string) error {
 	if _, ok := m.tickersManaged[ticker]; ok {
 		return errors.New("Ticker already managed")
@@ -38,13 +38,13 @@ func (m *ScrapeManager) AddTicker(wg *sync.WaitGroup, ticker string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	m.tickersManaged[ticker] = cancel
 	// Start thread
-	go m.RunScraping(ctx, wg, ticker)
+	go m.runScraping(ctx, wg, ticker)
 
 	return nil
 }
 
 // This will continually monitor the souce of the insider information.
-func (m *ScrapeManager) RunScraping(ctx context.Context, wg *sync.WaitGroup, ticker string) {
+func (m *ScrapeManager) runScraping(ctx context.Context, wg *sync.WaitGroup, ticker string) {
 	defer wg.Done()
 
 	// Initialize the SEC scraper
@@ -73,5 +73,24 @@ func (m *ScrapeManager) RunScraping(ctx context.Context, wg *sync.WaitGroup, tic
 		}
 
 	}
+}
 
+// CancelScraping cancels scraping and terminates thread for ticker provided
+func (m *ScrapeManager) CancelScraping(ticker string) error {
+	if cancelFunc, ok := m.tickersManaged[ticker]; ok {
+		cancelFunc()
+		delete(m.tickersManaged, ticker)
+		return nil
+	} else {
+		return errors.New("Ticker not managed")
+	}
+}
+
+// CancelAll cancels scraping and terminates thread for all tickers
+func (m *ScrapeManager) CancelAll() error {
+	for _, cancelFunc := range m.tickersManaged {
+		cancelFunc()
+	}
+	m.tickersManaged = make(map[string]context.CancelFunc, 0)
+	return nil
 }

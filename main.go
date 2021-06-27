@@ -26,11 +26,13 @@ func main() {
 			case report, ok := <-scrapeReports:
 				if !ok {
 					fmt.Println("Channel closing")
+					goto exitloop
 				}
 				fmt.Printf("Report for ticker %s recieved\n", report.Ticker)
 
 			}
 		}
+	exitloop:
 	}()
 
 	var wg sync.WaitGroup
