@@ -1,4 +1,4 @@
-package scraping
+package scrapers
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"regexp"
 
 	"github.com/gocolly/colly"
+	"github.com/peterbeamish/InsiderTrading/pkg/model"
 )
 
 type SECScraper struct {
@@ -62,7 +63,25 @@ func (s *SECScraper) tikerScrape(resp *colly.Response) {
 
 func (s *SECScraper) cikTransactionScrape(e *colly.HTMLElement) {
 	e.ForEach("tr", func(_ int, row *colly.HTMLElement) {
-		fmt.Println(row.Text)
+
+		var transaction model.InsiderTransaction
+
+		row.ForEach("td", func(columnIndex int, colData *colly.HTMLElement) {
+
+			switch columnIndex {
+			case 0:
+				transactionType := colData.Text
+				if transactionType == "D" {
+					transaction.TransactionType = model.InsiderTransaction_DISPOSITION
+				}
+
+			}
+
+			fmt.Println(colData)
+		})
+		//rowText := string(row.Text)
+		//fmt.Println(rowText)
+
 	})
 }
 

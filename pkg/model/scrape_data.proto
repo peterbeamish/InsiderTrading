@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+
+option go_package = "github.com/peterbeamish/insidertrading/pkg/model";
+
+message InsiderTransaction {
+    google.protobuf.Timestamp transaction_time = 1;
+    string insider_name = 2;
+    
+    enum TransactionType {
+        OTHER = 0;
+        BUY = 1;
+        SELL = 2;
+        DISPOSITION =3;
+    }
+
+    TransactionType transaction_type = 3;
+
+}

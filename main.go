@@ -11,17 +11,15 @@ func main() {
 
 	fmt.Println("Initializing Scraper")
 
-	scraper, err := scraping.NewSECScraper()
+	manager, err := scraping.NewScrapeManager()
 	if err != nil {
-		fmt.Errorf("Failed to initialize scraper")
+		fmt.Errorf("Failed to initialize scrape manager")
 		return
 	}
 
-	//scraper.ScrapeByCIK("0000320193")
-	scraper.ScapeByTicker("aapl")
-
 	var wg sync.WaitGroup
 	wg.Add(1)
+	manager.AddTicker(&wg, "aapl")
 
 	wg.Wait()
 }
