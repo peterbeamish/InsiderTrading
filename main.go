@@ -2,13 +2,26 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"sync"
+
+	"github.com/peterbeamish/InsiderTrading/pkg/scraping"
 )
 
 func main() {
 
-	fmt.Println("Test123")
+	fmt.Println("Initializing Scraper")
 
-	hostName, _ := os.Hostname()
-	fmt.Print(hostName)
+	scraper, err := scraping.NewSECScraper()
+	if err != nil {
+		fmt.Errorf("Failed to initialize scraper")
+		return
+	}
+
+	//scraper.ScrapeByCIK("0000320193")
+	scraper.ScapeByTicker("aapl")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	wg.Wait()
 }
